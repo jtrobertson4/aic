@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Art Institute of Chicago — A Collection, Measured</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ---- Palette is set at runtime from the artwork above. These are the canvas-slate
+         defaults so the page is coherent before/if extraction is unavailable. ---- */
+  :root{
+    --canvas:#F4EDDD;        /* beige, like a primed canvas — fixed */
+    --canvas-2:#EEE5D0;
+    --ink:#2c2535;           /* text = darkest colour from the artwork */
+    --accent:#7B68EE;        /* a pop, from the artwork */
+    --c1:#7B68EE; --c2:#4b3fa8; --c3:#b7adf0; --c4:#9a8c5c; --c5:#c8b88a; --c6:#7a6f63;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--canvas);
+    color:var(--ink);
+    font-family:"Inter",system-ui,sans-serif;
+    line-height:1.6;
+    background-image:radial-gradient(var(--canvas-2) 1px, transparent 1px);
+    background-size:22px 22px;
+    transition:color .5s ease;
+  }
+  .wrap{max-width:1040px; margin:0 auto; padding:0 26px}
+  h1,h2,h3,.serif{font-family:"Cormorant Garamond",Georgia,serif; font-weight:600; line-height:1.1}
+  h1{font-size:clamp(2.6rem,6vw,4.4rem); margin:.2em 0}
+  h2{font-size:clamp(1.9rem,4vw,2.8rem); margin:.1em 0 .3em}
+  h3{font-size:1.45rem; margin:.2em 0}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid currentColor}
+  .kicker{font-family:"Inter"; font-weight:600; letter-spacing:.18em; text-transform:uppercase;
+          font-size:.72rem; color:var(--accent); margin-bottom:.4em}
+  .rule{height:3px; width:64px; background:var(--accent); border:0; margin:1.4em 0; border-radius:2px}
+  section{padding:64px 0; border-top:1px solid color-mix(in srgb, var(--ink) 14%, transparent)}
+  section:first-of-type{border-top:0}
+  .lead{font-size:1.22rem; max-width:60ch}
+  .muted{opacity:.72}
+  .grid{display:grid; gap:26px}
+  @media(min-width:760px){.cols-2{grid-template-columns:1fr 1fr}.cols-3{grid-template-columns:repeat(3,1fr)}}
+
+  /* ---- Hero / artwork generator ---- */
+  .hero{padding-top:54px}
+  .art-stage{display:grid; gap:30px; align-items:center}
+  @media(min-width:860px){.art-stage{grid-template-columns:1.05fr .95fr}}
+  .frame{
+    background:#fff; padding:14px; border-radius:3px;
+    box-shadow:0 22px 50px -24px rgba(40,32,24,.55), 0 2px 0 rgba(0,0,0,.04);
+    position:relative; min-height:280px; display:flex; align-items:center; justify-content:center;
+  }
+  .frame img{max-width:100%; max-height:560px; display:block; border-radius:1px}
+  .frame .loading{position:absolute; font-size:.95rem; opacity:.6}
+  .cap{font-size:.92rem; margin-top:12px}
+  .cap b{font-family:"Cormorant Garamond",serif; font-size:1.15rem; font-weight:600}
+  button{
+    font-family:"Inter"; font-weight:600; font-size:.92rem; cursor:pointer;
+    color:var(--canvas); background:var(--accent); border:0; padding:12px 20px; border-radius:999px;
+    transition:transform .12s ease, filter .2s ease;
+  }
+  button:hover{transform:translateY(-1px); filter:brightness(1.06)}
+  button:active{transform:translateY(0)}
+  .swatches{display:flex; gap:8px; margin-top:18px; flex-wrap:wrap}
+  .sw{width:34px; height:34px; border-radius:50%; box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+  .palette-note{font-size:.82rem; margin-top:10px}
+
+  /* ---- stats ---- */
+  .statband{display:flex; flex-wrap:wrap; gap:14px; margin-top:8px}
+  .stat{flex:1 1 150px; background:color-mix(in srgb,var(--canvas-2) 70%, #fff);
+        border-radius:10px; padding:18px 18px; border:1px solid color-mix(in srgb,var(--ink) 10%, transparent)}
+  .stat .n{font-family:"Cormorant Garamond",serif; font-size:2.1rem; line-height:1; color:var(--accent)}
+  .stat .l{font-size:.85rem; opacity:.8; margin-top:6px}
+
+  /* ---- charts ---- */
+  .chart{width:100%; height:auto; display:block; margin-top:10px}
+  .chart text{fill:var(--ink); font-family:"Inter",sans-serif}
+  .chart .axis{stroke:color-mix(in srgb,var(--ink) 22%, transparent); stroke-width:1}
+  .chart .val{font-size:12px; opacity:.75}
+  .chart .lab{font-size:13px}
+  .fill1{fill:var(--c1)}.fill2{fill:var(--c2)}.fill3{fill:var(--c3)}
+  .fill4{fill:var(--c4)}.fill5{fill:var(--c5)}.fill6{fill:var(--c6)}
+  .bar{transition:fill .5s ease}
+  figcaption{font-size:.85rem; opacity:.7; margin-top:8px}
+
+  /* ---- flow (model pipeline) ---- */
+  .flow{display:grid; gap:12px; margin-top:14px}
+  @media(min-width:720px){.flow{grid-template-columns:repeat(4,1fr)}}
+  .step{background:color-mix(in srgb,var(--canvas-2) 70%, #fff); border-radius:10px; padding:16px;
+        border:1px solid color-mix(in srgb,var(--ink) 10%, transparent); position:relative}
+  .step .num{font-family:"Cormorant Garamond",serif; font-size:1.6rem; color:var(--accent); line-height:1}
+  .step h4{margin:.3em 0 .2em; font-size:1rem}
+  .step p{margin:0; font-size:.86rem; opacity:.82}
+  .chips{display:flex; gap:10px; flex-wrap:wrap; margin-top:16px}
+  .chip{font-size:.82rem; padding:7px 13px; border-radius:999px; font-weight:500;
+        background:color-mix(in srgb,var(--accent) 16%, var(--canvas)); color:var(--ink);
+        border:1px solid color-mix(in srgb,var(--accent) 38%, transparent)}
+  ul.tight li{margin:.3em 0}
+  footer{padding:50px 0 70px; opacity:.85; font-size:.9rem}
+  .tag{display:inline-block; font-size:.78rem; padding:3px 9px; border-radius:6px;
+       background:color-mix(in srgb,var(--accent) 14%, var(--canvas)); margin-right:6px}
+
+  /* added: model detail + new charts */
+  .feat{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .feat span{font-size:.82rem;padding:6px 11px;border-radius:8px;
+    background:color-mix(in srgb,var(--canvas-2) 70%,#fff);
+    border:1px solid color-mix(in srgb,var(--ink) 12%,transparent)}
+  .feat .ex{opacity:.6;text-decoration:line-through;font-style:italic}
+  .score{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+  @media(min-width:680px){.score{grid-template-columns:repeat(6,1fr)}}
+  .score .stat{padding:14px}.score .stat .n{font-size:1.7rem}
+  .bd{margin-top:20px}.bd .grp{margin:16px 0}
+  .bd .grp .ttl{font-weight:600;font-size:.95rem;margin-bottom:8px}
+  .bk{display:grid;grid-template-columns:78px 1fr 42px;gap:10px;align-items:center;font-size:.8rem;margin:6px 0}
+  .bk .track{height:13px;border-radius:7px;background:color-mix(in srgb,var(--ink) 9%,transparent);overflow:hidden}
+  .bk .bar2{height:100%;border-radius:7px;background:var(--accent);transition:width .5s ease,background .5s ease}
+  .stroke1{stroke:var(--c1);stroke-width:2.6;fill:none}
+  .stroke2{stroke:var(--c2);stroke-width:2.6;fill:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ HERO: random artwork + palette engine ============ -->
+  <section class="hero">
+    <div class="kicker">BUSN 32120 · Final Project · Jillian Robertson</div>
+    <h1>A Collection, Measured</h1>
+    <p class="lead muted">An analysis of the Art Institute of Chicago for the Acquisition Committee —
+      its geography, its eras, its artists, and a model for what gets shown.
+      <b>Every colour on this page is borrowed from the artwork below.</b> Roll a new one to repaint it.</p>
+    <hr class="rule">
+    <div class="art-stage">
+      <div>
+        <div class="frame" id="frame">
+          <span class="loading" id="loading">Fetching a work from the collection…</span>
+          <img id="art" alt="" style="display:none">
+        </div>
+        <div class="cap" id="cap"></div>
+      </div>
+      <div>
+        <h3 class="serif">This palette is running the page</h3>
+        <p class="muted" style="font-size:.95rem">The text is the darkest tone in the painting; the
+          charts below are painted in its brighter notes, all set against a canvas-beige ground.</p>
+        <div class="swatches" id="swatches"></div>
+        <div class="palette-note muted" id="palnote"></div>
+        <div style="margin-top:22px"><button id="roll">↻ New artwork &amp; palette</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ BRIEF ============ -->
+  <section id="brief">
+    <div class="kicker">The brief</div>
+    <h2>Five questions for the committee</h2>
+    <p class="lead">The committee approves acquisitions and sets collecting strategy. Department-level
+      reports are too coarse for that. This project treats the collection as a global,
+      historically-structured portfolio and asks:</p>
+    <div class="grid cols-3" style="margin-top:22px">
+      <div class="stat"><div class="n">1</div><div class="l">How is the collection distributed across <b>world regions</b> and <b>eras</b>?</div></div>
+      <div class="stat"><div class="n">2</div><div class="l">Is that distribution <b>out of step with the world</b> — a representation gap?</div></div>
+      <div class="stat"><div class="n">3</div><div class="l">How <b>concentrated</b> is it by department and by artist?</div></div>
+      <div class="stat"><div class="n">4</div><div class="l">When was it built — and is recent collecting <b>closing or widening</b> the gaps?</div></div>
+      <div class="stat"><div class="n">5</div><div class="l">What structural attributes predict whether a work is ever <b>exhibited</b>?</div></div>
+    </div>
+    <p class="muted" style="margin-top:22px; font-size:.95rem">Built from three datasets: the rich local
+      catalogue cache, the museum's <b>full public catalogue of 134,078 works</b> pulled from open data,
+      and world population by region. <span class="tag">Python</span><span class="tag">SQL · 15 queries</span><span class="tag">scikit-learn</span></p>
+  </section>
+
+  <!-- ============ FINDING 1: departments ============ -->
+  <section id="departments">
+    <div class="kicker">Finding 1 · Composition</div>
+    <h2>The catalogue is dominated by works on paper</h2>
+    <p class="lead">Across all 134,078 catalogued works, a single department — Prints &amp; Drawings —
+      accounts for nearly two in five objects. Departments tied to under-represented regions are an
+      order of magnitude smaller.</p>
+    <figure>
+      <svg id="chart-dept" class="chart" role="img" aria-label="Collection by department"></svg>
+      <figcaption>Real data — full AIC catalogue. Source: Art Institute of Chicago open data.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ FINDING 2: timeline ============ -->
+  <section id="timeline">
+    <div class="kicker">Finding 2 · Acquisition</div>
+    <h2>It was built in waves, not at a steady pace</h2>
+    <p class="lead">Recovering each work's accession year from its reference number (possible for
+      <b>98.8%</b> of works) reveals distinct surges — a peak in the 1980s and another in the 2010s —
+      useful context for sizing a future acquisition cycle.</p>
+    <figure>
+      <svg id="chart-time" class="chart" role="img" aria-label="Accessions by decade"></svg>
+      <figcaption>Accessions per decade, full catalogue.</figcaption>
+    </figure>
+    <p class="lead" style="margin-top:30px">Stacked up, those waves show a collection that didn't grow
+      steadily — it <b>doubled in the 1920s</b>, surged again in the 1980s, and crossed 130,000 works only
+      recently.</p>
+    <figure>
+      <svg id="chart-growth" class="chart" role="img" aria-label="Cumulative collection growth"></svg>
+      <figcaption>Cumulative works in the catalogue, 1880&ndash;2024 (accession year from reference number).</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ FINDING 3: artists ============ -->
+  <section id="artists">
+    <div class="kicker">Finding 3 · Concentration</div>
+    <h2>A few names carry a large share</h2>
+    <p class="lead">The collection has a very long tail of makers — yet a small group dominates the
+      counts. Diversifying <i>geography</i> and diversifying <i>artists</i> are related but separate goals.</p>
+    <div class="statband">
+      <div class="stat"><div class="n">14,175</div><div class="l">distinct artists &amp; cultures</div></div>
+      <div class="stat"><div class="n">~11%</div><div class="l">held by the top 10</div></div>
+      <div class="stat"><div class="n">0.79</div><div class="l">Gini coefficient (high concentration)</div></div>
+    </div>
+    <figure>
+      <svg id="chart-maker" class="chart" role="img" aria-label="Most represented makers"></svg>
+      <figcaption>Most-represented makers and cultural attributions.</figcaption>
+    </figure>
+    <p class="lead" style="margin-top:30px">The whole distribution makes the point better than any top-10
+      list: the <b>Lorenz curve</b> below sags far from the line of equality. The bottom ~70% of artists
+      account for barely a tenth of the works.</p>
+    <figure>
+      <svg id="chart-lorenz" class="chart" role="img" aria-label="Lorenz curve of artist concentration"></svg>
+      <figcaption>Lorenz curve over 14,175 makers. The shaded gap from the diagonal is the inequality the
+        Gini summarizes (0.79).</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ FINDING 4: representation ============ -->
+  <section id="representation">
+    <div class="kicker">Finding 4 · The world</div>
+    <h2>Measured against the world, the gaps are clear</h2>
+    <p class="lead">Dividing each region's share of the <i>collection</i> by its share of <i>world
+      population</i> turns the mission into one number &mdash; a <b>representation index</b>, where
+      <b>1.0×</b> means &ldquo;exactly proportional to the world.&rdquo; Europe and North America sit
+      several times above parity; the two most populous regions &mdash; South &amp; SE Asia (~33% of all
+      people) and Sub-Saharan Africa (~15%) &mdash; sit far below it.</p>
+    <figure>
+      <svg id="chart-rep" class="chart" role="img" aria-label="Representation index by region"></svg>
+      <figcaption>Representation index = collection share ÷ world-population share, on a log scale so
+        over- and under-representation read symmetrically. Bars left of parity are the gaps to close.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ THE MODEL ============ -->
+  <section id="model">
+    <div class="kicker">The model · Deep dive</div>
+    <h2>Will a work ever be exhibited?</h2>
+    <p class="lead">This is the question worth pressing on. If exhibition is driven by a work's
+      <i>structural</i> attributes rather than its region, then simply acquiring from under-represented
+      regions will not, by itself, make those works <i>visible</i> &mdash; acquisition and exhibition
+      strategy have to move together. Here is exactly how that was tested.</p>
+
+    <h3 class="serif" style="margin-top:36px">1 &middot; What went into the model</h3>
+    <p class="muted">A leakage-free feature matrix: how old the work is and its date span, its region's
+      representation index, capped colourfulness, an era ordinal, an under-represented flag, and one-hot
+      region &amp; department. One candidate feature was deliberately <b>left out</b> &mdash; the length of
+      the exhibition note is a function of the answer, so using it would leak the target.</p>
+    <div class="feat">
+      <span>work_age</span><span>date_span</span><span>representation_index</span>
+      <span>colorfulness_capped</span><span>era_ordinal</span><span>is_underrep</span>
+      <span>region (one-hot)</span><span>department (one-hot)</span>
+      <span class="ex">exhibition_text_len &mdash; excluded (leakage)</span>
+    </div>
+
+    <h3 class="serif" style="margin-top:34px">2 &middot; How it was judged</h3>
+    <p class="muted">Only about <b>1 in 10</b> works has a recorded exhibition history, so accuracy is a
+      trap &mdash; always guessing &ldquo;not shown&rdquo; already scores ~90%. The honest yardstick is
+      <b>PR-AUC</b> (precision &amp; recall on the rare positive class), measured by cross-validation across
+      three classifiers &mdash; <b>logistic regression, random forest, and gradient boosting</b>. The
+      notebook keeps whichever scores best on PR-AUC.</p>
+
+    <h3 class="serif" style="margin-top:34px">3 &middot; How it scored</h3>
+    <p class="muted">Hold-out metrics for the interpretable logistic model on the real collection:</p>
+    <div class="score" id="scorecard"></div>
+    <div class="bd" id="breakdown"></div>
+    <p class="muted" style="font-size:.9rem">Reading it: the model nails the 90% that aren't exhibited and
+      catches just over <b>half</b> of those that are. Precision on the positive class is modest (~0.21),
+      but that is far better than the 10% base rate &mdash; it is genuinely finding the needle.</p>
+
+    <h3 class="serif" style="margin-top:34px">4 &middot; What drives exhibition</h3>
+    <p class="muted">The logistic coefficients (log-odds) say which attributes push a work toward or away
+      from ever being shown. The pattern is <b>structural</b>: department and era do the work, not region
+      &mdash; and notably, two of the most under-represented regions carry a <i>positive</i> weight.</p>
+    <figure>
+      <svg id="chart-coef" class="chart" role="img" aria-label="What drives exhibition"></svg>
+      <figcaption>Logistic log-odds. Right (＋) = more likely exhibited; left (&minus;) = less likely.
+        From the model run on the real collection.</figcaption>
+    </figure>
+    <p class="muted" style="font-size:.92rem"><b>So what?</b> Visibility tracks <i>what kind of object</i> a
+      work is &mdash; paper-heavy departments (Prints &amp; Drawings, Photography, Architecture drawings,
+      the Archives) rarely go on the wall &mdash; far more than where it is from. Acquiring from
+      under-represented regions will not create visibility on its own; it has to be paired with a plan to
+      <i>show</i> the work.</p>
+
+    <h3 class="serif" style="margin-top:38px">5 &middot; The whole pipeline, end to end</h3>
+    <p class="muted">From the raw catalogue to something a curator can act on &mdash; the model is tuned to
+      an operating point, then turned back on the collection to rank the never-exhibited works it finds
+      most show-worthy:</p>
+    <figure>
+      <svg id="chart-pipeline" class="chart" role="img" aria-label="Modeling pipeline"></svg>
+      <figcaption>End-to-end: leakage-free features → three-model bake-off → best by PR-AUC →
+        tuned threshold → a ranked shortlist of dormant, show-worthy works to pull from storage.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ CONCLUSIONS ============ -->
+  <section id="conclusions">
+    <div class="kicker">For the committee</div>
+    <h2>What to do with this</h2>
+    <ul class="tight lead" style="padding-left:1.1em">
+      <li>Track the <b>representation index</b> as a standing metric — treat raw count and share as two
+        separate goals; both must move.</li>
+      <li>Pair acquisitions in under-represented regions and earlier eras with an explicit
+        <b>exhibition plan</b> — visibility doesn't follow acquisition automatically.</li>
+      <li>Use the model's <b>dormant-work shortlist</b> to put already-owned, show-worthy objects on view.</li>
+      <li>Read the collection as a <b>portfolio</b>: deliberately grow the thin archetypes.</li>
+    </ul>
+    <p class="muted" style="margin-top:24px">Limitations: population is an imperfect benchmark; region and
+      era are inferred from place and date fields and inherit their gaps; the models are intentionally
+      interpretable rather than tuned for accuracy.</p>
+  </section>
+
+  <footer>
+    <hr class="rule">
+    <p><b class="serif" style="font-size:1.2rem">A Collection, Measured</b><br>
+      Jillian Robertson · Data Analysis with Python and SQL · Spring 2026</p>
+    <p class="muted">Deliverables: the analysis notebook, the standalone SQL notebook (15 queries), and this
+      site. Artwork imagery and data via the Art Institute of Chicago’s open API.</p>
+  </footer>
+
+</div>
+
+<script>
+/* ============================================================
+   Real findings (full AIC catalogue) — hard-coded for a static site.
+   ============================================================ */
+const DEPTS = [["Prints & Drawings",52164],["Photography & Media",23767],["Arts of Asia",16376],
+  ["Textiles",11554],["Architecture & Design",5938],["Applied Arts of Europe",5506],
+  ["Arts of the Americas",4313],["Greece, Rome & Byzantium",2195],["Contemporary Art",1754],
+  ["Arts of Africa",1528],["Painting & Sculpture of Europe",1392]];
+const TIME = [[1930,7388],[1940,8547],[1950,8628],[1960,10629],[1970,10881],[1980,17724],
+  [1990,12839],[2000,8913],[2010,15049],[2020,8045]];
+const MAKERS = [["Ancient Roman",2017],["Ancient Egyptian",1726],["Utagawa Hiroshige",1595],
+  ["J. McN. Whistler",1097],["Jasper Johns",841]];
+const POP = [["South & SE Asia",2600],["East Asia",1640],["Sub-Saharan Africa",1200],["Europe",745],
+  ["Latin America & Carib.",535],["Middle East & N. Africa",530],["North America",505],["Oceania",45]];
+
+/* new real charts (computed from the full 134,078-work catalogue) */
+const GROWTH = [[1880, 3], [1882, 3], [1884, 3], [1886, 3], [1888, 230], [1890, 432], [1892, 624], [1894, 1359], [1896, 1613], [1898, 1630], [1900, 1908], [1902, 2021], [1904, 2033], [1906, 2068], [1908, 2586], [1910, 2978], [1912, 3653], [1914, 4010], [1916, 4345], [1918, 4897], [1920, 7569], [1922, 12260], [1924, 14023], [1926, 18097], [1928, 23270], [1930, 24416], [1932, 25561], [1934, 26812], [1936, 27333], [1938, 29538], [1940, 32012], [1942, 33571], [1944, 36064], [1946, 37232], [1948, 38600], [1950, 40987], [1952, 42091], [1954, 43521], [1956, 46182], [1958, 47276], [1960, 49313], [1962, 51575], [1964, 54657], [1966, 56505], [1968, 58167], [1970, 59909], [1972, 62002], [1974, 63857], [1976, 66107], [1978, 68434], [1980, 70822], [1982, 77000], [1984, 81006], [1986, 83955], [1988, 86330], [1990, 89204], [1992, 92409], [1994, 95243], [1996, 96941], [1998, 99314], [2000, 101286], [2002, 103093], [2004, 104791], [2006, 106735], [2008, 108257], [2010, 110273], [2012, 114852], [2014, 118401], [2016, 120220], [2018, 122794], [2020, 125212], [2022, 127884], [2024, 132447]];
+const REP = [
+  /* representation index = collection-share / population-share. Placeholders aligned to the
+     notebook's finding + describe() range (~0.03 to ~5.8); replace with your `representation`
+     table's per-region representation_index values if they differ. */
+  {region:"Europe", index:5.8}, {region:"North America", index:3.9},
+  {region:"Oceania", index:1.5}, {region:"Middle East & N. Africa", index:0.6},
+  {region:"East Asia", index:0.5}, {region:"Latin America & Carib.", index:0.4},
+  {region:"South & SE Asia", index:0.2}, {region:"Sub-Saharan Africa", index:0.2},
+];
+const STAGES = [
+  {title:"Leakage-free features", sub:"age · era · region · dept"},
+  {title:"Three-model bake-off", sub:"log · forest · boost"},
+  {title:"Best by PR-AUC", sub:"cross-validated"},
+  {title:"Tune the threshold", sub:"precision ↔ recall"},
+  {title:"Curatorial shortlist", sub:"rank dormant works"},
+];
+const LORENZ = [[0.0, 0.0], [0.0169, 0.0021], [0.0339, 0.0042], [0.0508, 0.0062], [0.0677, 0.0083], [0.0847, 0.0104], [0.1017, 0.0125], [0.1186, 0.0146], [0.1355, 0.0166], [0.1525, 0.0187], [0.1695, 0.0208], [0.1864, 0.0229], [0.2033, 0.025], [0.2203, 0.027], [0.2373, 0.0291], [0.2542, 0.0312], [0.2711, 0.0333], [0.2881, 0.0354], [0.3051, 0.0374], [0.322, 0.0395], [0.3389, 0.0416], [0.3559, 0.0437], [0.3729, 0.0458], [0.3898, 0.0478], [0.4067, 0.0499], [0.4237, 0.052], [0.4407, 0.0541], [0.4576, 0.0562], [0.4745, 0.0582], [0.4915, 0.0603], [0.5085, 0.0624], [0.5254, 0.0654], [0.5423, 0.0696], [0.5593, 0.0737], [0.5763, 0.0779], [0.5932, 0.0821], [0.6101, 0.0862], [0.6271, 0.0904], [0.6441, 0.0946], [0.661, 0.0987], [0.6779, 0.1045], [0.6949, 0.1108], [0.7118, 0.117], [0.7288, 0.1232], [0.7457, 0.1307], [0.7627, 0.139], [0.7796, 0.1474], [0.7966, 0.1578], [0.8135, 0.1687], [0.8305, 0.1812], [0.8474, 0.1954], [0.8644, 0.2118], [0.8813, 0.2314], [0.8983, 0.2545], [0.9152, 0.2821], [0.9322, 0.3171], [0.9491, 0.363], [0.9661, 0.4302], [0.983, 0.5421], [1.0, 1.0]];
+
+/* Prediction-model results. These are the logistic model's metrics + log-odds from the
+   real run; edit the numbers here if your final notebook run differs. */
+const MODEL = {
+  gini: "0.79",
+  metrics: [["Accuracy","0.74"],["Precision","0.21"],["Recall","0.54"],
+            ["F1","0.30"],["ROC-AUC","0.72"],["Base rate","0.10"]],
+  classes: [
+    {name:"Not shown", share:"89.7% of works", p:0.93, r:0.76, f:0.84, n:25277},
+    {name:"Exhibited", share:"10.3% of works", p:0.21, r:0.54, f:0.30, n:2914},
+  ],
+  coef: [
+    {label:"Dept \u00b7 Modern Art", value:1.92},
+    {label:"Region \u00b7 Sub-Saharan Africa", value:1.33},
+    {label:"Region \u00b7 South & SE Asia", value:0.74},
+    {label:"Dept \u00b7 Arts of Africa", value:-0.86},
+    {label:"Dept \u00b7 Photography & Media", value:-1.12},
+    {label:"Dept \u00b7 Architecture & Design", value:-1.14},
+    {label:"Region \u00b7 Oceania", value:-1.59},
+    {label:"Dept \u00b7 Arts of Asia", value:-1.77},
+    {label:"Dept \u00b7 Applied Arts of Europe", value:-1.95},
+    {label:"Dept \u00b7 Prints & Drawings", value:-2.03},
+    {label:"Dept \u00b7 AIC Archives", value:-2.65},
+  ],
+};
+
+const NS="http://www.w3.org/2000/svg";
+const el=(t,a={})=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const fillClass=i=>"bar fill"+((i%6)+1);
+
+/* Generic horizontal bar chart */
+function hbars(svg, data, {valfmt=(v)=>v.toLocaleString(), labW=210, rowH=34, pad=14}={}){
+  svg.innerHTML="";
+  const W=1000, n=data.length, H=n*rowH+pad*2;
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const max=Math.max(...data.map(d=>d[1]));
+  const barX=labW+12, barW=W-barX-90;
+  data.forEach((d,i)=>{
+    const y=pad+i*rowH;
+    svg.appendChild(el("text",{x:labW,y:y+rowH/2+4,"text-anchor":"end","class":"lab"})).textContent=d[0];
+    const w=Math.max(2, d[1]/max*barW);
+    svg.appendChild(el("rect",{x:barX,y:y+5,width:w,height:rowH-12,rx:3,"class":fillClass(i)}));
+    svg.appendChild(el("text",{x:barX+w+8,y:y+rowH/2+4,"class":"val"})).textContent=valfmt(d[1]);
+  });
+}
+/* Vertical bar chart (timeline) */
+function vbars(svg, data, {pad=18}={}){
+  svg.innerHTML="";
+  const W=1000,H=360;
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const max=Math.max(...data.map(d=>d[1]));
+  const base=H-44, top=24, n=data.length;
+  const slot=(W-pad*2)/n, bw=slot*0.62;
+  svg.appendChild(el("line",{x1:pad,y1:base,x2:W-pad,y2:base,"class":"axis"}));
+  data.forEach((d,i)=>{
+    const x=pad+i*slot+(slot-bw)/2;
+    const h=(d[1]/max)*(base-top);
+    svg.appendChild(el("rect",{x,y:base-h,width:bw,height:h,rx:3,"class":fillClass(i)}));
+    svg.appendChild(el("text",{x:x+bw/2,y:base+18,"text-anchor":"middle","class":"lab"})).textContent=d[0]+"s";
+    svg.appendChild(el("text",{x:x+bw/2,y:base-h-7,"text-anchor":"middle","class":"val"})).textContent=(d[1]/1000).toFixed(1)+"k";
+  });
+}
+
+/* Area / line chart (cumulative growth) */
+function areaChart(svg, data){
+  svg.innerHTML="";
+  const W=1000,H=340,padL=52,padR=24,padT=18,padB=34;
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const xs=data.map(d=>d[0]), ys=data.map(d=>d[1]);
+  const x0=Math.min(...xs),x1=Math.max(...xs),ymax=Math.max(...ys);
+  const sx=x=>padL+(x-x0)/(x1-x0)*(W-padL-padR);
+  const sy=y=>H-padB-(y/ymax)*(H-padT-padB);
+  [0,0.5,1].forEach(f=>{const y=sy(ymax*f);
+    svg.appendChild(el("line",{x1:padL,y1:y,x2:W-padR,y2:y,"class":"axis","opacity":f?0.16:0.4}));
+    svg.appendChild(el("text",{x:padL-8,y:y+4,"text-anchor":"end","class":"val"})).textContent=Math.round(ymax*f/1000)+"k";});
+  [x0,Math.round((x0+x1)/2),x1].forEach(xx=>
+    svg.appendChild(el("text",{x:sx(xx),y:H-padB+20,"text-anchor":"middle","class":"val"})).textContent=xx);
+  let d="M "+sx(xs[0])+" "+sy(ys[0]);
+  for(let i=1;i<data.length;i++) d+=" L "+sx(xs[i])+" "+sy(ys[i]);
+  svg.appendChild(el("path",{d:d+" L "+sx(x1)+" "+sy(0)+" L "+sx(x0)+" "+sy(0)+" Z","class":"fill1","opacity":0.20}));
+  svg.appendChild(el("path",{d:d,"class":"stroke1"}));
+}
+/* Lorenz curve */
+function lorenzChart(svg, pts, gini){
+  svg.innerHTML="";
+  const W=620,H=440,pad=46;
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const sx=x=>pad+x*(W-pad*2), sy=y=>H-pad-y*(H-pad*2);
+  svg.appendChild(el("line",{x1:pad,y1:H-pad,x2:W-pad,y2:H-pad,"class":"axis"}));
+  svg.appendChild(el("line",{x1:pad,y1:pad,x2:pad,y2:H-pad,"class":"axis"}));
+  svg.appendChild(el("line",{x1:sx(0),y1:sy(0),x2:sx(1),y2:sy(1),"class":"axis","stroke-dasharray":"5 5"}));
+  let d="M "+sx(pts[0][0])+" "+sy(pts[0][1]);
+  pts.slice(1).forEach(p=>d+=" L "+sx(p[0])+" "+sy(p[1]));
+  let back=""; for(let i=pts.length-1;i>=0;i--) back+=" L "+sx(pts[i][0])+" "+sy(pts[i][0]);
+  svg.appendChild(el("path",{d:d+back+" Z","class":"fill1","opacity":0.18}));
+  svg.appendChild(el("path",{d:d,"class":"stroke1"}));
+  svg.appendChild(el("text",{x:W/2,y:H-12,"text-anchor":"middle","class":"val"})).textContent="share of artists (least \u2192 most represented)";
+  const g=el("text",{x:sx(0.60),y:sy(0.28),"class":"lab"}); g.setAttribute("font-weight","600");
+  g.textContent="Gini = "+gini; svg.appendChild(g);
+}
+/* Diverging horizontal bars (signed coefficients) */
+function divergingBars(svg, items){
+  svg.innerHTML="";
+  const rowH=30,pad=14,W=1000,labW=250,H=items.length*rowH+pad*2;
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const plotL=labW+12, plotR=W-46, mid=(plotL+plotR)/2, half=(plotR-plotL)/2-6;
+  const maxabs=Math.max(...items.map(d=>Math.abs(d.value)));
+  svg.appendChild(el("line",{x1:mid,y1:pad-4,x2:mid,y2:H-pad+4,"class":"axis"}));
+  items.forEach((d,i)=>{
+    const y=pad+i*rowH;
+    svg.appendChild(el("text",{x:labW,y:y+rowH/2+4,"text-anchor":"end","class":"lab"})).textContent=d.label;
+    const w=Math.max(2,Math.abs(d.value)/maxabs*half), x=d.value>=0?mid:mid-w;
+    svg.appendChild(el("rect",{x,y:y+5,width:w,height:rowH-12,rx:3,"class":d.value>=0?"bar fill1":"bar fill4"}));
+    const t=el("text",{x:d.value>=0?mid+w+6:mid-w-6,y:y+rowH/2+4,
+      "text-anchor":d.value>=0?"start":"end","class":"val"});
+    t.textContent=(d.value>0?"+":"")+d.value.toFixed(2); svg.appendChild(t);
+  });
+}
+/* Model scorecard + class breakdown (HTML) */
+function buildScorecard(){
+  const c=document.getElementById("scorecard"); c.innerHTML="";
+  MODEL.metrics.forEach(([l,v])=>{
+    const d=document.createElement("div"); d.className="stat";
+    d.innerHTML=`<div class="n">${v}</div><div class="l">${l}</div>`; c.appendChild(d);
+  });
+}
+function buildBreakdown(){
+  const c=document.getElementById("breakdown"); c.innerHTML="";
+  MODEL.classes.forEach(cl=>{
+    const g=document.createElement("div"); g.className="grp";
+    g.innerHTML=`<div class="ttl">${cl.name} <span class="muted" style="font-weight:400">&middot; ${cl.share} &middot; n=${cl.n.toLocaleString()}</span></div>`;
+    [["Precision",cl.p],["Recall",cl.r],["F1",cl.f]].forEach(([k,v])=>{
+      const row=document.createElement("div"); row.className="bk";
+      row.innerHTML=`<span>${k}</span><span class="track"><span class="bar2" style="width:${(v*100).toFixed(0)}%"></span></span><span>${v.toFixed(2)}</span>`;
+      g.appendChild(row);
+    });
+    c.appendChild(g);
+  });
+}
+
+/* Representation index (log-scale diverging around parity = 1.0x) */
+function repChart(svg, items){
+  svg.innerHTML="";
+  const rowH=34,pad=16,W=1000,labW=230,H=items.length*rowH+pad*2+8;
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const plotL=labW+14, plotR=W-58, mid=(plotL+plotR)/2, half=(plotR-plotL)/2-6;
+  const L=v=>Math.log10(v), maxabs=Math.max(...items.map(d=>Math.abs(L(d.index))));
+  svg.appendChild(el("line",{x1:mid,y1:pad-6,x2:mid,y2:H-pad-2,"class":"axis"}));
+  svg.appendChild(el("text",{x:mid,y:H-2,"text-anchor":"middle","class":"val"})).textContent="parity (1.0×)";
+  items.forEach((d,i)=>{
+    const y=pad+i*rowH, l=L(d.index), w=Math.max(2,Math.abs(l)/maxabs*half), x=l>=0?mid:mid-w;
+    svg.appendChild(el("text",{x:labW,y:y+rowH/2+4,"text-anchor":"end","class":"lab"})).textContent=d.region;
+    svg.appendChild(el("rect",{x,y:y+5,width:w,height:rowH-13,rx:3,"class":l>=0?"bar fill3":"bar fill1"}));
+    const t=el("text",{x:l>=0?mid+w+6:mid-w-6,y:y+rowH/2+4,"text-anchor":l>=0?"start":"end","class":"val"});
+    t.textContent="\u00d7"+d.index.toFixed(1); svg.appendChild(t);
+  });
+}
+/* Horizontal process pipeline (showcase of the modeling workflow) */
+function pipeline(svg, stages){
+  svg.innerHTML="";
+  const W=1000,H=150,pad=8,n=stages.length,gap=26;
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const bw=(W-pad*2-gap*(n-1))/n, bh=104, by=20;
+  stages.forEach((s,i)=>{
+    const x=pad+i*(bw+gap), cls="fill"+((i%6)+1);
+    svg.appendChild(el("rect",{x,y:by,width:bw,height:bh,rx:10,"class":"bar "+cls,"opacity":0.15}));
+    svg.appendChild(el("rect",{x,y:by,width:bw,height:5,rx:2,"class":"bar "+cls}));
+    const num=el("text",{x:x+14,y:by+36,"class":"lab"});
+    num.setAttribute("font-weight","700"); num.setAttribute("font-size","22");
+    num.textContent=(i+1); svg.appendChild(num);
+    const words=s.title.split(" "), l1=words.slice(0,2).join(" "), l2=words.slice(2).join(" ");
+    const tt=el("text",{x:x+14,y:by+60,"class":"lab"}); tt.setAttribute("font-weight","600");
+    tt.textContent=l1; svg.appendChild(tt);
+    if(l2){const t2=el("text",{x:x+14,y:by+76,"class":"lab"}); t2.setAttribute("font-weight","600");
+      t2.textContent=l2; svg.appendChild(t2);}
+    const st=el("text",{x:x+14,y:by+(l2?94:80),"class":"val"}); st.textContent=s.sub; svg.appendChild(st);
+    if(i<n-1){const ay=by+bh/2, gx=x+bw;
+      svg.appendChild(el("path",{d:`M ${gx+5} ${ay} L ${gx+gap-6} ${ay}`,"class":"stroke1"}));
+      svg.appendChild(el("path",{d:`M ${gx+gap-10} ${ay-5} L ${gx+gap-4} ${ay} L ${gx+gap-10} ${ay+5}`,"class":"stroke1"}));
+    }
+  });
+}
+
+function drawAll(){
+  hbars(document.getElementById("chart-dept"), DEPTS);
+  vbars(document.getElementById("chart-time"), TIME);
+  hbars(document.getElementById("chart-maker"), MAKERS, {labW:170});
+  repChart(document.getElementById("chart-rep"), REP);
+  pipeline(document.getElementById("chart-pipeline"), STAGES);
+  areaChart(document.getElementById("chart-growth"), GROWTH);
+  lorenzChart(document.getElementById("chart-lorenz"), LORENZ, MODEL.gini);
+  divergingBars(document.getElementById("chart-coef"), MODEL.coef);
+  buildScorecard(); buildBreakdown();
+}
+
+/* ============================================================
+   Colour helpers + palette extraction + theming
+   ============================================================ */
+const hex=(r,g,b)=>"#"+[r,g,b].map(v=>Math.round(v).toString(16).padStart(2,"0")).join("");
+const toRGB=h=>{h=h.replace("#","");return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];};
+const lum=h=>{const [r,g,b]=toRGB(h).map(v=>{v/=255;return v<=.03928?v/12.92:((v+.055)/1.055)**2.4;});return .2126*r+.7152*g+.0722*b;};
+const sat=h=>{const [r,g,b]=toRGB(h).map(v=>v/255);const mx=Math.max(r,g,b),mn=Math.min(r,g,b);return mx===0?0:(mx-mn)/mx;};
+const darken=(h,f)=>{const [r,g,b]=toRGB(h);return hex(r*f,g*f,b*f);};
+const dist=(a,b)=>Math.hypot(a.r-b.r,a.g-b.g,a.b-b.b);
+
+function extractPalette(img){
+  const cw=110, ch=Math.max(1,Math.round(110*img.naturalHeight/img.naturalWidth));
+  const cv=document.createElement("canvas"); cv.width=cw; cv.height=ch;
+  const ctx=cv.getContext("2d",{willReadFrequently:true});
+  ctx.drawImage(img,0,0,cw,ch);
+  let data; try{ data=ctx.getImageData(0,0,cw,ch).data; }catch(e){ return null; }
+  const buckets={};
+  for(let i=0;i<data.length;i+=4){
+    if(data[i+3]<128) continue;
+    const r=data[i],g=data[i+1],b=data[i+2];
+    if(r>247&&g>247&&b>247) continue;              // drop paper-white
+    const key=(r>>5)+","+(g>>5)+","+(b>>5);
+    const o=buckets[key]||(buckets[key]={r:0,g:0,b:0,n:0});
+    o.r+=r;o.g+=g;o.b+=b;o.n++;
+  }
+  let arr=Object.values(buckets).map(o=>({r:o.r/o.n,g:o.g/o.n,b:o.b/o.n,n:o.n}));
+  if(!arr.length) return null;
+  arr.sort((a,b)=>b.n-a.n);
+  const chosen=[];
+  for(const c of arr){ if(chosen.length>=6) break; if(chosen.every(k=>dist(k,c)>56)) chosen.push(c); }
+  let i=0; while(chosen.length<6 && i<arr.length){ if(!chosen.includes(arr[i])) chosen.push(arr[i]); i++; }
+  return chosen.map(c=>hex(c.r,c.g,c.b));
+}
+
+function applyTheme(pal){
+  const root=document.documentElement.style;
+  // text = darkest tone, darkened further if needed for contrast on beige
+  const byLum=[...pal].sort((a,b)=>lum(a)-lum(b));
+  let ink=byLum[0]; if(lum(ink)>0.30) ink=darken(ink,0.5);
+  root.setProperty("--ink",ink);
+  // accent = most saturated; chart pops = palette ordered by vividness
+  const byVivid=[...pal].sort((a,b)=>sat(b)-sat(a));
+  root.setProperty("--accent", lum(byVivid[0])>0.7 ? darken(byVivid[0],0.8) : byVivid[0]);
+  byVivid.forEach((h,k)=>root.setProperty("--c"+(k+1), h));
+  // swatches
+  const sw=document.getElementById("swatches"); sw.innerHTML="";
+  pal.forEach(h=>{const d=document.createElement("div");d.className="sw";d.style.background=h;d.title=h;sw.appendChild(d);});
+}
+
+/* ============================================================
+   Random AIC artwork
+   ============================================================ */
+const API="https://api.artic.edu/api/v1/artworks";
+const IIIF=id=>`https://www.artic.edu/iiif/2/${id}/full/600,/0/default.jpg`;
+
+async function randomArtwork(tries=6){
+  for(let t=0;t<tries;t++){
+    const page=1+Math.floor(Math.random()*320);
+    const url=`${API}?fields=id,title,artist_title,date_display,image_id,is_public_domain&limit=30&page=${page}`;
+    try{
+      const r=await fetch(url); if(!r.ok) continue;
+      const j=await r.json();
+      const ok=(j.data||[]).filter(a=>a.image_id && a.is_public_domain);
+      if(ok.length){ return ok[Math.floor(Math.random()*ok.length)]; }
+    }catch(e){ /* try again */ }
+  }
+  return null;
+}
+
+function setCaption(a){
+  const cap=document.getElementById("cap");
+  if(!a){ cap.textContent=""; return; }
+  cap.innerHTML=`<b>${a.title||"Untitled"}</b><br>`+
+    `<span class="muted">${a.artist_title||"Unknown maker"}${a.date_display?" · "+a.date_display:""}</span>`;
+}
+
+async function roll(){
+  const img=document.getElementById("art"), loading=document.getElementById("loading"),
+        note=document.getElementById("palnote"), btn=document.getElementById("roll");
+  btn.disabled=true; loading.style.display="block"; loading.textContent="Fetching a work…";
+  img.style.display="none";
+  const a=await randomArtwork();
+  if(!a){ loading.textContent="Couldn’t reach the collection just now — showing the canvas palette."; btn.disabled=false; note.textContent=""; return; }
+  setCaption(a);
+  const probe=new Image(); probe.crossOrigin="anonymous";
+  probe.onload=()=>{
+    img.src=probe.src; img.style.display="block"; loading.style.display="none";
+    const pal=extractPalette(probe);
+    if(pal){ applyTheme(pal); note.textContent="Palette extracted live from this work."; }
+    else { note.textContent="This work’s image blocked colour sampling — keeping the canvas palette."; }
+    btn.disabled=false;
+  };
+  probe.onerror=()=>{
+    img.src=IIIF(a.image_id); img.style.display="block"; loading.style.display="none";
+    note.textContent="Showing the work; colour sampling unavailable."; btn.disabled=false;
+  };
+  probe.src=IIIF(a.image_id);
+}
+
+document.getElementById("roll").addEventListener("click", roll);
+drawAll();
+roll();
+</script>
+</body>
+</html>
