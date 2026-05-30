@@ -23,8 +23,9 @@ coefficient chart) plus a step-by-step walkthrough of the prediction model.
 
 ### View it live
 
-Enable GitHub Pages (Settings → Pages → deploy from the `main` branch, root) and open the published
-URL. The site requires internet access in the viewer's browser to reach the AIC API. To run locally:
+Link: 
+
+To run locally:
 
 ```bash
 python -m http.server 8000   # then open http://localhost:8000
@@ -37,7 +38,7 @@ python -m http.server 8000   # then open http://localhost:8000
 | File | Description |
 |------|-------------|
 | `index.html` | Interactive presentation website (self-contained, no build step). |
-| `aic_collection_final_project_robertson.ipynb` | Main analysis notebook: data quality, EDA across three datasets, feature engineering, 15 SQL queries, three models, and conclusions. |
+| `aic_collection_final_project_robertson.ipynb` | Main analysis notebook: data quality, EDA across three datasets, feature engineering, two models, and conclusions. |
 | `aic_sql_queries.ipynb` | Standalone SQL notebook with the same 15 heavily-commented queries. |
 | `README.md` | This file. |
 
@@ -59,10 +60,6 @@ This project draws on three datasets:
 
 3. **World population by region (~2024).** Approximate regional population totals (UN-aligned
    groupings) used as the external benchmark for the representation index.
-
-*This project was completed for coursework and is not affiliated with or endorsed by the Art
-Institute of Chicago.*
-
 ---
 
 ## AI disclosure
